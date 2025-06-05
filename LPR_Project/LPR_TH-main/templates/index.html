@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>License Plate Detection</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f0f0f0; }
+    .container { max-width: 100%; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 20px; }
+    .video-container { flex: 1; min-width: 300px; max-width: 100%; }
+    .results-container { flex: 1; min-width: 300px; max-width: 100%; }
+    #video-feed { width: 100%; max-width: 100%; height: auto; border: 2px solid #333; border-radius: 5px; }
+    .table-container { background-color: white; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); padding: 15px; margin-bottom: 15px; height: 600px; overflow-y: auto; }
+    .table-header { position: sticky; top: 0; background-color: white; z-index: 1; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+    th { background-color: #4CAF50; color: white; }
+    tr:hover { background-color: #f5f5f5; }
+    .vehicle-image { max-width: 150px; max-height: 100px; border-radius: 4px; }
+    .history-dropdown { width: 100%; margin-top: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background-color: white; display: none; }
+    .controls { margin-bottom: 15px; display: flex; gap: 10px; align-items: center; }
+    .refresh-btn { padding: 10px 20px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 5px; }
+    .refresh-btn:hover { background-color: #45a049; }
+    .refresh-icon { display: inline-block; width: 16px; height: 16px; border: 2px solid #fff; border-radius: 50%; border-top-color: transparent; }
+    .refresh-btn.loading .refresh-icon { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (max-width: 1200px) { .container { flex-direction: column; } .video-container, .results-container { max-width: 100%; } .table-container { height: 400px; } }
+    h1, h2 { color: #333; margin-top: 0; }
+    .toast-message {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: #4CAF50;
+      color: white;
+      padding: 15px 25px;
+      border-radius: 4px;
+      display: none;
+      animation: slideIn 0.3s ease-out;
+      z-index: 1000;
+    }
+    @keyframes slideIn {
+      from { transform: translateX(100%); }
+      to { transform: translateX(0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="video-container">
+      <h1>ระบบตรวจจับป้ายทะเบียน</h1>
+      <img id="video-feed" src="{{ url_for('video') }}" alt="Video Feed">
+    </div>
+    <div class="results-container">
+      <div class="controls">
+        <h2>รายการทะเบียนที่ตรวจพบ</h2>
+        <button class="refresh-btn" onclick="refreshData()">
+          <span class="refresh-icon"></span>
+          รีเฟรชข้อมูล
+        </button>
+      </div>
+      <div class="table-container">
+        <table id="detection-table">
+          <thead>
+            <tr>
+              <th>เวลา</th>
+              <th>รถ</th>
+              <th>ทะเบียนรถ</th>
+              <th>จังหวัด</th>
+              <th>สถานะ</th>
+            </tr>
+          </thead>
+          <tbody id="detection-log">
+          </tbody>
+        </table>
+      </div>
+      <select id="history-dropdown" class="history-dropdown">
+        <option value="" disabled selected>ประวัติการตรวจจับเพิ่มเติม...</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="toast" class="toast-message"></div>
+
+  <script>
+    const maxTableRows = 100; // จำนวนรายการสูงสุดที่จะแสดงในตารางหลัก
+    let allDetections = []; // เก็บข้อมูลที่ตรวจพบทั้งหมด
+    let isRefreshing = false; // ตัวแปรเช็คสถานะการรีเฟรช
+
+    // แสดงข้อความแจ้งเตือนแบบลอย
+    function showToast(message, duration = 3000) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.style.display = 'block';
+      
+      setTimeout(() => {
+        toast.style.display = 'none';
+      }, duration);
+    }
+
+    // เรียก API ไปลบ cache ด้าน server
+    function clearCache() {
+      return fetch('/clear_cache', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }).then(response => response.json());
+    }
+
+    // อัปเดตตารางจาก API /log
+    function updateTable() {
+      fetch('/log')
+        .then(response => response.json())
+        .then(data => {
+          allDetections = data; // บันทึกข้อมูลทั้งหมด
+          const tbody = document.getElementById('detection-log');
+          const dropdown = document.getElementById('history-dropdown');
+          
+            // ล้างตารางและ dropdown เดิม
+          tbody.innerHTML = '';
+          dropdown.innerHTML = '<option value="" disabled selected>ประวัติการตรวจจับเพิ่มเติม...</option>';
+          
+          // เติมข้อมูลใหม่ในตาราง
+          data.forEach(entry => {
+            const row = document.createElement('tr');
+            let status = '';
+            if (entry.is_employee) {
+              status = `พนักงานบริษัท: ${entry.driver_name || ''}`;
+            } else if (entry.registered) {
+              status = 'ลงทะเบียนแล้ว';
+            } else {
+              status = 'ไม่ได้ลงทะเบียน';
+            }
+            row.innerHTML = `
+              <td>${entry.time}</td>
+              <td>${entry.snapshot ? `<img class="vehicle-image" src="data:image/jpeg;base64,${entry.snapshot}" alt="Vehicle">` : 'No image'}</td>
+              <td>${entry.plate}</td>
+              <td>${entry.province || ''}</td>
+              <td>${status}</td>
+            `;
+            tbody.appendChild(row);
+          });
+          
+          // ถ้าข้อมูลมากเกินจำนวนแสดงผล ให้โชว์ dropdown
+          if (data.length > maxTableRows) {
+            dropdown.style.display = 'block';
+            const olderDetections = data.slice(0, -maxTableRows);
+            olderDetections.forEach((entry, index) => {
+              const option = document.createElement('option');
+              option.value = index;
+              option.text = `${entry.time} - ${entry.plate} ${entry.province || ''}`;
+              dropdown.appendChild(option);
+            });
+          } else {
+            dropdown.style.display = 'none';
+          }
+        });
+    }
+
+    async function refreshData() {
+      if (isRefreshing) return;
+      
+      const btn = document.querySelector('.refresh-btn');
+      btn.classList.add('loading');
+      isRefreshing = true;
+
+      try {
+        // Clear server-side cache
+        const result = await clearCache();
+        if (result.status === 'success') {
+          showToast('รีเฟรชข้อมูลสำเร็จ');
+          
+          // Clear client-side data
+          allDetections = [];
+          const tbody = document.getElementById('detection-log');
+          const dropdown = document.getElementById('history-dropdown');
+          tbody.innerHTML = '';
+          dropdown.innerHTML = '<option value="" disabled selected>ประวัติการตรวจจับเพิ่มเติม...</option>';
+          dropdown.style.display = 'none';
+          
+          // Update table to get fresh data
+          await updateTable();
+        }
+      } catch (error) {
+        showToast('เกิดข้อผิดพลาดในการรีเฟรชข้อมูล');
+        console.error('Refresh error:', error);
+      } finally {
+        setTimeout(() => {
+          btn.classList.remove('loading');
+          isRefreshing = false;
+        }, 1000);
+      }
+    }
+
+    // ตั้งให้โหลดข้อมูลซ้ำทุก 1 วินาที
+    setInterval(updateTable, 1000);
+    updateTable();
+
+    document.getElementById('history-dropdown').addEventListener('change', function(e) {
+      const selectedIndex = parseInt(e.target.value);
+      const entry = allDetections[selectedIndex];
+      if (entry) {
+        alert(`รายละเอียดการตรวจจับ:\nเวลา: ${entry.time}\nทะเบียน: ${entry.plate}\nจังหวัด: ${entry.province || 'ไม่ระบุ'}`);
+      }
+      e.target.selectedIndex = 0;
+    });
+  </script>
+</body>
+</html>
