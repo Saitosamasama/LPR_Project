@@ -1,6 +1,8 @@
 # นำเข้าไลบรารีที่จำเป็น
 from flask import Flask, Response, jsonify, render_template, request
 import cv2
+import os
+import argparse
 from ultralytics import YOLO
 from function.helper import get_thai_character, data_province, split_license_plate_and_province
 from function.database import (
@@ -368,9 +370,16 @@ def clear_cache():
     detector.last_detection_time = 0  # รีเซ็ตเวลาการตรวจจับล่าสุด (เพื่อให้ cooldown ไม่มีผลทันที)
     return jsonify({"status": "success", "message": "Cache cleared successfully"}) # คืนค่าสถานะความสำเร็จ
 
-if __name__ == '__main__': 
-    video_path = r"C:\Users\suranan\Desktop\LPR_Project\LPR_TH-main\video\Untitled video - Made with Clipchamp.mp4" # กำหนด path ของไฟล์วิดีโอ
-    detector.start_video(video_path)  # เริ่มการประมวลผลวิดีโอด้วยไฟล์ที่กำหนด
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Thai license plate recognition service')
+    parser.add_argument('--video', dest='video_path', help='Path to video file')
+    args = parser.parse_args()
+
+    video_path = args.video_path or os.getenv('VIDEO_PATH')
+    if not video_path:
+        raise SystemExit('Please provide a video path using --video or the VIDEO_PATH environment variable')
+
+    detector.start_video(video_path)
     # รัน Flask development server
     # host='0.0.0.0' ทำให้สามารถเข้าถึงได้จากทุก IP address ในเครือข่าย
     # port=5000 กำหนด port ที่จะรัน server
