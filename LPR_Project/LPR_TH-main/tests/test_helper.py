@@ -4,7 +4,7 @@ from pathlib import Path
 # Add project root to path so modules can be imported
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from function.helper import split_license_plate_and_province, get_thai_character
+from function.helper import split_license_plate_and_province, get_thai_character, data_province
 
 
 def test_split_license_plate_and_province_basic():
@@ -23,3 +23,11 @@ def test_split_license_plate_and_province_no_numbers():
 
 def test_get_thai_character():
     assert get_thai_character("A01") == "ก"
+
+
+def test_get_thai_character_province():
+    assert get_thai_character("BKK") == "กรุงเทพมหานคร"
+
+
+def test_data_province_lookup():
+    assert data_province["BKK"] == "กรุงเทพมหานคร"
