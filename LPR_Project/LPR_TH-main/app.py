@@ -368,9 +368,17 @@ def clear_cache():
     detector.last_detection_time = 0  # รีเซ็ตเวลาการตรวจจับล่าสุด (เพื่อให้ cooldown ไม่มีผลทันที)
     return jsonify({"status": "success", "message": "Cache cleared successfully"}) # คืนค่าสถานะความสำเร็จ
 
-if __name__ == '__main__': 
-    video_path = r"C:\Users\suranan\Desktop\LPR_Project\LPR_TH-main\video\Untitled video - Made with Clipchamp.mp4" # กำหนด path ของไฟล์วิดีโอ
-    detector.start_video(video_path)  # เริ่มการประมวลผลวิดีโอด้วยไฟล์ที่กำหนด
+if __name__ == '__main__':
+    import argparse
+    import os
+
+    parser = argparse.ArgumentParser(description='License Plate Recognition server')
+    parser.add_argument('--video', help='Path to video file or camera index')
+    args = parser.parse_args()
+
+    video_path = args.video or os.getenv('VIDEO_PATH', 'video/default.mp4')
+    detector.start_video(video_path)
+
     # รัน Flask development server
     # host='0.0.0.0' ทำให้สามารถเข้าถึงได้จากทุก IP address ในเครือข่าย
     # port=5000 กำหนด port ที่จะรัน server

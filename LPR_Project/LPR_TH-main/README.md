@@ -42,11 +42,14 @@ pip list
 
 ## การใช้งาน
 
-1. แก้ไขตัวแปร `video_path` ที่ท้ายไฟล์ `LPR_TH/app.py` ให้ชี้ไปยังไฟล์วิดีโอของคุณ
+1. ระบุแหล่งวิดีโอด้วยอาร์กิวเมนต์ `--video` หรือกำหนดตัวแปรสภาพแวดล้อม `VIDEO_PATH`
 2. เริ่มต้นฐานข้อมูลและรันแอปพลิเคชัน (เมื่อรันครั้งแรกจะสร้างไฟล์ `vehicle.db` ให้อัตโนมัติ)
 
 ```bash
-python LPR_TH/app.py
+# ใช้ argument
+python LPR_TH/app.py --video /path/to/video.mp4
+# หรือใช้ตัวแปรสภาพแวดล้อม
+VIDEO_PATH=/path/to/video.mp4 python LPR_TH/app.py
 ```
 
 ### เติมข้อมูลตัวอย่าง
