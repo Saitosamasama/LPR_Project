@@ -1,0 +1,10 @@
+flask
+opencv-python-headless
+ultralytics==8.3.3
+numpy
+opencv-contrib-python
+shapely
+torch
+torchvision
+torchaudio
+pytest
