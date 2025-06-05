@@ -66,6 +66,7 @@
               <th>รถ</th>
               <th>ทะเบียนรถ</th>
               <th>จังหวัด</th>
+              <th>เจ้าของรถ</th>
               <th>สถานะ</th>
             </tr>
           </thead>
@@ -123,19 +124,13 @@
           // เติมข้อมูลใหม่ในตาราง
           data.forEach(entry => {
             const row = document.createElement('tr');
-            let status = '';
-            if (entry.is_employee) {
-              status = `พนักงานบริษัท: ${entry.driver_name || ''}`;
-            } else if (entry.registered) {
-              status = 'ลงทะเบียนแล้ว';
-            } else {
-              status = 'ไม่ได้ลงทะเบียน';
-            }
+            let status = entry.registered ? 'ผ่าน' : 'คนนอก';
             row.innerHTML = `
               <td>${entry.time}</td>
               <td>${entry.snapshot ? `<img class="vehicle-image" src="data:image/jpeg;base64,${entry.snapshot}" alt="Vehicle">` : 'No image'}</td>
               <td>${entry.plate}</td>
               <td>${entry.province || ''}</td>
+              <td>${entry.driver_name || '-'}</td>
               <td>${status}</td>
             `;
             tbody.appendChild(row);
